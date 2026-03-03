@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Output Quo Revisit Messages</title>
+
+  <h2>
+    <img src="{{ url_for('static', filename='pp_logo.png') }}" alt="Logo" style="height: 200px; vertical-align: middle;">
+    Output Quo Revisit Messages
+  </h2>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+
+  <style>
+    table.table th { text-align: left; vertical-align: middle; }
+
+    .convo-card { height: 520px; display: flex; flex-direction: column; }
+    .convo-body { overflow-y: auto; flex: 1; background: #fafafa; }
+
+    .msg-row { display: flex; margin-bottom: 10px; }
+    .msg-row.incoming { justify-content: flex-start; }
+    .msg-row.outgoing { justify-content: flex-end; }
+
+    .msg-bubble {
+      max-width: 88%;
+      padding: 8px 10px;
+      border-radius: 12px;
+      background: white;
+      border: 1px solid #eee;
+    }
+    .msg-row.outgoing .msg-bubble {
+      background: #eef6ff;
+      border-color: #d7eaff;
+    }
+
+    .msg-text { white-space: pre-wrap; font-size: 0.95rem; }
+    .msg-time { margin-top: 4px; font-size: 0.75rem; color: #777; }
+  </style>
+</head>
+
+<body class="container mt-5">
+
+  <!-- SEARCH FORM -->
+  <form method="POST" action="/">
+    <div class="mb-3">
+      <label>Target Location:</label>
+      <input type="text" name="location" class="form-control" placeholder="e.g., Woodstock, GA" required>
+    </div>
+
+    <div class="mb-3">
+      <label>State:</label>
+      <input type="text" name="state" class="form-control" placeholder="e.g., GA" required>
+    </div>
+
+    <p class="form-text text-muted mt-2">
+      If results come up empty after you click the button below, try only inputting the city/state/zip code, not the full address.
+      If results still come up empty, this means we don't have any homes near this target location.
+    </p>
+
+    <div class="mb-3">
+      <label>Code:</label>
+      <input type="text" name="code" class="form-control" required>
+    </div>
+
+    <div class="mb-3">
+      <button type="submit" class="btn btn-secondary" name="action" value="output_city_state">
+        Output City State String
+      </button>
+    </div>
+
+    {% if city_state_output %}
+      <div class="alert alert-info mt-3">
+        <strong>Nearby City-State String:</strong><br>
+        {{ city_state_output }}
+      </div>
+    {% endif %}
+
+    <div class="mb-3">
+      <label>Minimum Beds:</label>
+      <input type="number" name="min_beds" class="form-control" value="2" min="0" required>
+    </div>
+
+    <div class="mb-3">
+      <label>Maximum Beds:</label>
+      <input type="number" name="max_beds" class="form-control" value="2" min="0" required>
+    </div>
+
+    <div class="mb-3">
+      <label>Minimum Baths:</label>
+      <input type="number" step="0.5" name="baths" class="form-control" value="2" min="0" required>
+    </div>
+
+    <p><strong>ONLY ENTER VALUES IN ONE SEARCH BOX BELOW</strong></p>
+
+    <div class="mb-3">
+      <label for="city_state">Enter City-State (hyphen-separated):</label>
+      <input type="text" name="city_state" class="form-control" placeholder="e.g. Moreno Valley, CA - Riverside, CA - Perris, CA">
+    </div>
+
+    <div class="mb-3">
+      <label for="city_state_zip">Enter City-State-Zip (hyphen-separated):</label>
+      <input type="text" name="city_state_zip" class="form-control" placeholder="e.g. Moreno Valley, CA 92557 - Riverside, CA 92501 - Rancho Cucamonga, CA 91730">
+    </div>
+
+    <button type="submit" class="btn btn-primary mb-5" name="action" value="find_properties">
+      Find Properties
+    </button>
+  </form>
+
+  <!-- RESULTS TABLE + OUTPUT MESSAGES FORM -->
+  {% if results %}
+    <hr>
+    <div class="row">
+      <div class="col-md-8">
+        <h3>Results</h3>
+        <div class="table-responsive" style="max-height: 900px; overflow-y: auto;">
+          {{ results|safe }}
+        </div>
+      </div>
+
+      <div class="col-md-4">
+        <h4>Output Messages</h4>
+        <form method="POST" action="/return_messages">
+          <input type="hidden" name="filters" value="{{ filters }}">
+
+          <div class="mb-3">
+            <label for="miles">Number of Miles to be Considered:</label>
+            <input type="number" name="miles" step="any" class="form-control" required>
+          </div>
+
+          <div class="mb-3">
+            <label>Your First Name</label>
+            <input type="text" name="first_name" class="form-control" required>
+          </div>
+
+          <button type="submit" class="btn btn-success">
+            Click to Output Messages
+          </button>
+        </form>
+      </div>
+    </div>
+  {% endif %}
+
+  <!-- CONVERSATION GRID + FOLLOW-UP FORM -->
+  {% if convo_cards %}
+
+    {# ✅ Clear selections ONLY on a NEW RUN (no page param posted). Paging uses name="page". #}
+    {% if request.form.get('page') is none %}
+      <script>
+        localStorage.setItem("pph_selected_pns", JSON.stringify([]));
+      </script>
+    {% endif %}
+
+    <hr>
+    <h3 class="mt-3">Conversation Grid (Last 10 Messages)</h3>
+
+    <!-- One form ONLY. Prev/Next override with formaction to /return_messages -->
+    <form method="POST" action="/send_follow_up">
+      <!-- Needed by both follow-up and pagination -->
+      <input type="hidden" name="filters" value="{{ filters }}">
+      <input type="hidden" name="miles" value="{{ miles }}">
+      <input type="hidden" name="first_name" value="{{ first_name }}">
+      <input type="hidden" name="selected_pns" id="selected_pns" value="">
+
+      <div class="row g-3">
+        {% for c in convo_cards %}
+          <div class="col-12 col-md-6 col-xl-4">
+            <div class="card shadow-sm convo-card">
+              <div class="card-header d-flex justify-content-between align-items-start">
+                <div>
+                  <div class="fw-semibold">{{ c.title }}</div>
+                  <div class="text-muted small">Rep: {{ c.rep_name }} • {{ c.participant }}</div>
+                </div>
+
+                <div class="text-end">
+                  <div class="text-muted small">{{ c.last_activity }}</div>
+
+                  <div class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox" name="pns" value="{{ c.participant }}" id="pn_{{ loop.index }}">
+                    <label class="form-check-label small" for="pn_{{ loop.index }}">
+                      Follow up
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card-body convo-body">
+                {% for m in c.messages %}
+                  <div class="msg-row {{ 'outgoing' if m.direction == 'outgoing' else 'incoming' }}">
+                    <div class="msg-bubble">
+                      <div class="msg-text">{{ m.text }}</div>
+                      <div class="msg-time">{{ m.time }}</div>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+
+              <div class="card-footer text-muted small">
+                Showing last {{ c.messages|length }} messages
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+
+      <!-- PAGINATION (NO NESTED FORM) -->
+      {% if total_pages and total_pages > 1 %}
+        <div class="d-flex justify-content-center gap-2 mt-3">
+          <button
+            class="btn btn-outline-primary"
+            type="submit"
+            name="page"
+            value="{{ page-1 }}"
+            formaction="/return_messages"
+            formmethod="post"
+            {% if page <= 1 %}disabled{% endif %}
+          >
+            Prev
+          </button>
+
+          <div class="align-self-center text-muted">
+            Page {{ page }} of {{ total_pages }}
+          </div>
+
+          <button
+            class="btn btn-outline-primary"
+            type="submit"
+            name="page"
+            value="{{ page+1 }}"
+            formaction="/return_messages"
+            formmethod="post"
+            {% if page >= total_pages %}disabled{% endif %}
+          >
+            Next
+          </button>
+        </div>
+      {% endif %}
+
+      <!-- FOLLOW-UP MESSAGE -->
+      <div class="mt-4">
+        <label class="form-label fw-semibold">Follow-Up Message</label>
+        <textarea
+          name="followup_message"
+          class="form-control"
+          rows="3"
+          placeholder="Hi! Just wanted to follow up on our housing request above."
+        ></textarea>
+
+        <div class="form-text">
+          This message will be sent to all selected conversations.
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-between align-items-center mt-4">
+        <div class="text-muted small">
+          Selected: <span id="selected_count">0</span>
+          <button type="button" class="btn btn-sm btn-outline-secondary ms-2" onclick="clearSelections()">Clear</button>
+        </div>
+
+        <button type="submit" class="btn btn-warning btn-lg">
+          Send Follow Up Message
+        </button>
+      </div>
+    </form>
+  {% endif %}
+
+  <!-- FOLLOW-UP RESULTS -->
+  {% if followup_status %}
+    <hr>
+    <h4>Follow-Up Results</h4>
+    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+      {{ followup_status|safe }}
+    </div>
+
+    {# ✅ Clear selections AFTER sending follow ups #}
+    <script>
+      localStorage.setItem("pph_selected_pns", JSON.stringify([]));
+    </script>
+  {% endif %}
+
+  <!-- SELECTION PERSISTENCE SCRIPT -->
+  <script>
+    const STORAGE_KEY = "pph_selected_pns";
+
+    function getSelected() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); }
+      catch { return []; }
+    }
+
+    function setSelected(arr) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
+    }
+
+    function updateHiddenField() {
+      const arr = getSelected();
+      const hidden = document.getElementById("selected_pns");
+      if (hidden) hidden.value = JSON.stringify(arr);
+
+      const counter = document.getElementById("selected_count");
+      if (counter) counter.textContent = arr.length;
+    }
+
+    document.addEventListener("change", function (e) {
+      if (!e.target.matches("input[type='checkbox'][name='pns']")) return;
+
+      const pn = e.target.value;
+      let selected = getSelected();
+
+      if (e.target.checked) {
+        if (!selected.includes(pn)) selected.push(pn);
+      } else {
+        selected = selected.filter(x => x !== pn);
+      }
+
+      setSelected(selected);
+      updateHiddenField();
+    });
+
+    document.addEventListener("DOMContentLoaded", function () {
+      const selected = getSelected();
+      document.querySelectorAll("input[type='checkbox'][name='pns']").forEach(cb => {
+        cb.checked = selected.includes(cb.value);
+      });
+      updateHiddenField();
+    });
+
+    function clearSelections() {
+      setSelected([]);
+      document.querySelectorAll("input[type='checkbox'][name='pns']").forEach(cb => cb.checked = false);
+      updateHiddenField();
+    }
+  </script>
+
+</body>
+</html>
