@@ -168,7 +168,16 @@
               <div class="card-header d-flex justify-content-between align-items-start">
                 <div>
                   <div class="fw-semibold">{{ c.title }}</div>
-                  <div class="text-muted small">Rep: {{ c.rep_name }} • {{ c.participant }}</div>
+                  <!-- Phone stays (you already show it elsewhere). Under it, show address(es). -->
+                  {% if c.addresses %}
+                    <div class="text-muted small mt-1">
+                      {% for a in c.addresses %}
+                        <div>{{ a }}</div>
+                      {% endfor %}
+                    </div>
+                  {% else %}
+                    <div class="text-muted small mt-1">Address: —</div>
+                  {% endif %}
                 </div>
 
                 <div class="text-end">
