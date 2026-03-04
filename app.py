@@ -395,6 +395,11 @@ def return_messages():
     sub = result_df[(result_df.distance_miles <=num_miles) & (result_df['Phone Number']!='')][['Phone Number']]
     sub['pn'] = sub['Phone Number'].apply(lambda x: extract_10_digit_number(x))
     sub = sub.drop_duplicates(subset='pn')
+    
+    a = result_df[(result_df.distance_miles <=10) & (result_df['Phone Number']!='')]
+    a['pn'] = a['Phone Number'].apply(lambda x: extract_10_digit_number(x))
+    addr_map = a.groupby("pn")["full_address"].apply(lambda s: list(dict.fromkeys(s.astype(str).tolist()))).to_dict()
+
     if first_name =='Charlie':
         PHONE_NUMBER_ID =  "PNvnUZwoP3"
     elif first_name == 'Mahmoud':
@@ -424,24 +429,26 @@ def return_messages():
 
     convo_cards = []
     for p in participants_page:
+        p_norm = extract_10_digit_number(p)   # NEW: normalize for lookup
+        addresses = addr_map.get(p_norm, [])  # NEW: list (could be empty)
+
         status_code, payload = openphone_get_last10_messages(PHONE_NUMBER_ID, p)
 
         if status_code != 200:
             convo_cards.append({
-                "title": "Error loading messages",
+                "title": f"{p}",
                 "participant": p,
                 "rep_name": first_name,
                 "last_activity": "",
+                "addresses": addresses,  # NEW
                 "messages": [{"direction": "incoming", "text": f"{status_code}: {payload}", "time": ""}],
             })
             continue
 
         msgs = payload.get("data", [])
-        # OpenPhone often returns newest->oldest; normalize then sort oldest->newest for reading
         norm = [normalize_message(m) for m in msgs]
         norm = sorted(norm, key=lambda x: x["createdAt"] if pd.notnull(x["createdAt"]) else pd.Timestamp.min)
 
-        # last activity = newest message local time
         last_activity = ""
         if norm and pd.notnull(norm[-1]["createdAt"]):
             last_activity = pd.to_datetime(norm[-1]["createdAt"]).tz_convert(LOCAL_TZ).strftime("%b %d, %I:%M %p")
@@ -451,6 +458,7 @@ def return_messages():
             "participant": p,
             "rep_name": first_name,
             "last_activity": last_activity,
+            "addresses": addresses,  # NEW
             "messages": norm,
         })
 
