@@ -395,8 +395,8 @@ def return_messages():
     sub = result_df[(result_df.distance_miles <=num_miles) & (result_df['Phone Number']!='')][['Phone Number']]
     sub['pn'] = sub['Phone Number'].apply(lambda x: extract_10_digit_number(x))
     sub = sub.drop_duplicates(subset='pn')
-    
-    a = result_df[(result_df.distance_miles <=10) & (result_df['Phone Number']!='')]
+
+    a = result_df[(result_df.distance_miles <=num_miles) & (result_df['Phone Number']!='')]
     a['pn'] = a['Phone Number'].apply(lambda x: extract_10_digit_number(x))
     addr_map = a.groupby("pn")["full_address"].apply(lambda s: list(dict.fromkeys(s.astype(str).tolist()))).to_dict()
 
