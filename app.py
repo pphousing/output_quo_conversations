@@ -387,6 +387,13 @@ def return_messages():
     result_df = result_df.drop('index',axis=1)
     num_miles = float(request.form['miles'])
     first_name = str(request.form['first_name'])
+    indices  = str(request.form['indices'])
+    print('INDICES: ', indices)
+    if indices!='':
+        indices_to_filter = [int(i) for i in indices.split(', ')]
+    if indices!='':
+        result_df = result_df[result_df.idx.isin(indices_to_filter)]
+    print(result_df)
 
     
   
