@@ -108,6 +108,13 @@ def send_text(phone_num, message, first_name):
         "to":[phone_num],
         "userId":'US2ADkcfr0'
     }
+    elif first_name == 'Sara':
+        payload = {
+        "content": message,
+        "from":  'PN9mu12wlD',
+        "to":[phone_num],
+        "userId":'USPE5q7t2R'
+    }
     response = requests.post(url,headers=headers, json = payload)
     return response
 
@@ -417,6 +424,9 @@ def return_messages():
         PHONE_NUMBER_ID = 'PNecGwld3E'
     elif first_name == 'Eissa':
         PHONE_NUMBER_ID = 'PNGxRJ7ziq'
+    elif first_name =='Sara':
+        PHONE_NUMBER_ID='PN9mu12wlD'
+
     # Build participant list (E.164)
     participants = []
     for raw in sub['pn'].dropna().unique():
