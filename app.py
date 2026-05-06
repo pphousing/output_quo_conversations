@@ -496,6 +496,61 @@ def return_messages():
     #     city_state_output=None,
     #     convo_cards=convo_cards
     # )
+    # ── Furnished Finder Cold Outreach cards ──────────────────────────
+    # PHONE_NUMBER_ID is already resolved from first_name above —
+    # use it directly so Sara only fetches from Sara's inbox, etc.
+    ff_convo_cards = []
+    lead_id = str(request.form.get("lead_id", "")).strip()
+    if lead_id:
+        try:
+            creds_ff  = authenticate_google()
+            client_ff = gspread.authorize(creds_ff)
+            ws_ff     = client_ff.open("Reverse Arbitrage Leads").worksheet("Messaging Tracker")
+            all_rows  = ws_ff.get_all_records()
+
+            matched = [
+                r for r in all_rows
+                if str(r.get("Lead ID", "")).strip() == lead_id
+                and str(r.get("PPH Specialist Name", "")).strip().lower() == first_name.strip().lower()
+            ]
+
+            seen_phones = set()
+            for row in matched:
+                raw_phone = str(row.get("Phone Number", "")).strip()
+                if not raw_phone:
+                    continue
+                phone = extract_10_digit_number(raw_phone)
+                if phone in seen_phones:
+                    continue
+                seen_phones.add(phone)
+
+                landlord_name = row.get("Landlord Name", phone)
+                ff_link       = row.get("Furnished Finder Link", "")
+
+                # Use the specialist inbox only — same PHONE_NUMBER_ID resolved above
+                status_code, payload = openphone_get_last10_messages(PHONE_NUMBER_ID, phone)
+                msgs_found = payload.get("data", []) if status_code == 200 else []
+
+                norm = [normalize_message(m) for m in msgs_found]
+                norm = sorted(
+                    norm,
+                    key=lambda x: x["createdAt"] if pd.notnull(x["createdAt"]) else pd.Timestamp.min
+                )
+
+                last_activity = ""
+                if norm and pd.notnull(norm[-1]["createdAt"]):
+                    last_activity = pd.to_datetime(norm[-1]["createdAt"]).tz_convert(LOCAL_TZ).strftime("%b %d, %I:%M %p")
+
+                ff_convo_cards.append({
+                    "title":         landlord_name,
+                    "participant":   phone,
+                    "ff_link":       ff_link,
+                    "last_activity": last_activity,
+                    "messages":      norm,
+                })
+        except Exception as e:
+            print(f"[FF Convo Cards] Error: {e}")
+
     return render_template(
         "index.html",
         results=None,
@@ -506,8 +561,44 @@ def return_messages():
         page=page,
         total_pages=total_pages,
         miles=num_miles,
-        first_name=first_name
+        first_name=first_name,
+        ff_convo_cards=ff_convo_cards,
+        ff_lead_id=lead_id,
     )
+@app.route("/send_ff_follow_up", methods=["POST"])
+def send_ff_follow_up():
+    first_name = str(request.form.get("first_name", "")).strip()
+
+    ff_selected_raw = request.form.get("ff_selected_pns", "[]")
+    try:
+        pns = json.loads(ff_selected_raw)
+    except json.JSONDecodeError:
+        pns = []
+    if not pns:
+        pns = request.form.getlist("ff_pns")
+
+    if not pns:
+        return render_template("index.html",
+            ff_followup_status="<div class='alert alert-warning'>No FF conversations selected.</div>",
+            filters=json.dumps({}), results=None, city_state_output=None,
+            convo_cards=None, ff_convo_cards=None)
+
+    message_template = request.form.get("ff_followup_message") or         "Hi! Just wanted to follow up on our housing request above."
+
+    results = []
+    for pn in pns:
+        resp = send_text(pn, message_template, first_name)
+        results.append({"recipient": pn, "status_code": resp.status_code, "response": resp.text})
+
+    ff_followup_status = pd.DataFrame(results).to_html(
+        classes="table table-bordered table-striped", index=False)
+
+    return render_template("index.html",
+        ff_followup_status=ff_followup_status,
+        filters=json.dumps({}), results=None, city_state_output=None,
+        convo_cards=None, ff_convo_cards=None)
+
+
 @app.route("/send_follow_up", methods=["POST"])
 def send_follow_up():
     first_name = str(request.form.get("first_name", "")).strip()
