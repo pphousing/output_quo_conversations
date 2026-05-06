@@ -135,6 +135,10 @@
               <label for="info">Filter By Indices</label>
               <input type="text" name="indices" class="form-control" placeholder="Make Sure This is Comma Separated">
           </div>
+          <div class="mb-3">
+              <label for="info">Lead ID</label>
+              <input type="text" name="lead_id" class="form-control" required>
+          </div>
 
           <button type="submit" class="btn btn-success">
             Click to Output Messages
@@ -341,6 +345,166 @@
       setSelected([]);
       document.querySelectorAll("input[type='checkbox'][name='pns']").forEach(cb => cb.checked = false);
       updateHiddenField();
+    }
+  </script>
+
+
+  <!-- ══════════════════════════════════════════════
+       FURNISHED FINDER COLD OUTREACH SECTION
+  ══════════════════════════════════════════════ -->
+  {% if ff_convo_cards %}
+
+    {% if request.form.get('page') is none %}
+      <script>
+        localStorage.setItem('pph_ff_selected_pns', JSON.stringify([]));
+      </script>
+    {% endif %}
+
+    <hr class="my-5">
+    <h3 class="mt-3">
+      Furnished Finder Cold Outreach
+      <span class="text-muted fs-6 fw-normal ms-2">(Lead #{{ ff_lead_id }} · {{ ff_convo_cards|length }} conversation{{ 's' if ff_convo_cards|length != 1 }})</span>
+    </h3>
+
+    <form method="POST" action="/send_ff_follow_up">
+      <input type="hidden" name="first_name" value="{{ first_name }}">
+      <input type="hidden" name="ff_selected_pns" id="ff_selected_pns" value="">
+
+      <div class="row g-3">
+        {% for c in ff_convo_cards %}
+          <div class="col-12 col-md-6 col-xl-4">
+            <div class="card shadow-sm convo-card">
+              <div class="card-header d-flex justify-content-between align-items-start">
+                <div style="min-width:0;">
+                  <div class="fw-semibold">{{ c.title }}</div>
+                  <div class="text-muted small mt-1">{{ c.participant }}</div>
+                  {% if c.ff_link %}
+                    <div class="mt-1">
+                      <a href="{{ c.ff_link }}" target="_blank"
+                         class="small text-primary"
+                         style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;display:inline-block;"
+                         title="{{ c.ff_link }}">🔗 FF Listing</a>
+                    </div>
+                  {% endif %}
+                </div>
+                <div class="text-end">
+                  <div class="text-muted small">{{ c.last_activity }}</div>
+                  <div class="form-check mt-2">
+                    <input class="form-check-input ff-checkbox" type="checkbox"
+                           name="ff_pns" value="{{ c.participant }}"
+                           id="ff_pn_{{ loop.index }}">
+                    <label class="form-check-label small" for="ff_pn_{{ loop.index }}">
+                      Follow up
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card-body convo-body">
+                {% if c.messages %}
+                  {% for m in c.messages %}
+                    <div class="msg-row {{ 'outgoing' if m.direction == 'outgoing' else 'incoming' }}">
+                      <div class="msg-bubble">
+                        <div class="msg-text">{{ m.text }}</div>
+                        <div class="msg-time">{{ m.time }}</div>
+                      </div>
+                    </div>
+                  {% endfor %}
+                {% else %}
+                  <div class="text-center text-muted py-4 small">No messages found in Quo for this number.</div>
+                {% endif %}
+              </div>
+
+              <div class="card-footer text-muted small">
+                Showing last {{ c.messages|length }} messages
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+
+      <!-- FF FOLLOW-UP MESSAGE -->
+      <div class="mt-4">
+        <label class="form-label fw-semibold">Follow-Up Message</label>
+        <textarea
+          name="ff_followup_message"
+          class="form-control"
+          rows="3"
+          placeholder="Hi! Just wanted to follow up on our housing request above."
+        ></textarea>
+        <div class="form-text">This message will be sent to all selected FF conversations.</div>
+      </div>
+
+      <div class="d-flex justify-content-between align-items-center mt-4">
+        <div class="text-muted small">
+          Selected: <span id="ff_selected_count">0</span>
+          <button type="button" class="btn btn-sm btn-outline-secondary ms-2" onclick="clearFFSelections()">Clear</button>
+        </div>
+        <button type="submit" class="btn btn-warning btn-lg">
+          Send Follow Up Message
+        </button>
+      </div>
+    </form>
+  {% endif %}
+
+  <!-- FF FOLLOW-UP RESULTS -->
+  {% if ff_followup_status %}
+    <hr>
+    <h4>FF Follow-Up Results</h4>
+    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+      {{ ff_followup_status|safe }}
+    </div>
+    <script>
+      localStorage.setItem('pph_ff_selected_pns', JSON.stringify([]));
+    </script>
+  {% endif %}
+
+  <!-- FF SELECTION PERSISTENCE SCRIPT -->
+  <script>
+    const FF_STORAGE_KEY = "pph_ff_selected_pns";
+
+    function getFFSelected() {
+      try { return JSON.parse(localStorage.getItem(FF_STORAGE_KEY) || "[]"); }
+      catch { return []; }
+    }
+
+    function setFFSelected(arr) {
+      localStorage.setItem(FF_STORAGE_KEY, JSON.stringify(arr));
+    }
+
+    function updateFFHiddenField() {
+      const arr = getFFSelected();
+      const hidden = document.getElementById("ff_selected_pns");
+      if (hidden) hidden.value = JSON.stringify(arr);
+      const counter = document.getElementById("ff_selected_count");
+      if (counter) counter.textContent = arr.length;
+    }
+
+    document.addEventListener("change", function (e) {
+      if (!e.target.matches("input[type='checkbox'].ff-checkbox")) return;
+      const pn = e.target.value;
+      let selected = getFFSelected();
+      if (e.target.checked) {
+        if (!selected.includes(pn)) selected.push(pn);
+      } else {
+        selected = selected.filter(x => x !== pn);
+      }
+      setFFSelected(selected);
+      updateFFHiddenField();
+    });
+
+    document.addEventListener("DOMContentLoaded", function () {
+      const selected = getFFSelected();
+      document.querySelectorAll("input[type='checkbox'].ff-checkbox").forEach(cb => {
+        cb.checked = selected.includes(cb.value);
+      });
+      updateFFHiddenField();
+    });
+
+    function clearFFSelections() {
+      setFFSelected([]);
+      document.querySelectorAll("input[type='checkbox'].ff-checkbox").forEach(cb => cb.checked = false);
+      updateFFHiddenField();
     }
   </script>
 
