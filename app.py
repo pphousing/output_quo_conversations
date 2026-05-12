@@ -320,7 +320,7 @@ def index():
             print("length:", len(city_state_output) if city_state_output else None)
         elif action == 'find_properties':
             code = request.form.get('code')
-            if code == 'RentalsPPH':
+            if code == 'CorpHousing2026':
                 min_beds = int(request.form['min_beds'])
                 max_beds = int(request.form['max_beds'])
                 baths = float(request.form['baths'])
