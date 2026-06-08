@@ -101,12 +101,12 @@ def send_text(phone_num, message, first_name):
         "to":[phone_num],
         "userId":'USkdRcH9dR'
     }
-    elif first_name == 'Omar':
+    elif first_name == 'Raul':
         payload = {
         "content": message,
         "from":  'PNGxRJ7ziq',
         "to":[phone_num],
-        "userId":'USkzTra3Ya'
+        "userId":'USuWv0mT0e'
     }
     elif first_name == 'Sara':
         payload = {
@@ -422,7 +422,7 @@ def return_messages():
         PHONE_NUMBER_ID = 'PNVYQxBEmb'
     elif first_name == 'Mohamed':
         PHONE_NUMBER_ID = 'PNecGwld3E'
-    elif first_name == 'Omar':
+    elif first_name == 'Raul':
         PHONE_NUMBER_ID = 'PNGxRJ7ziq'
     elif first_name =='Sara':
         PHONE_NUMBER_ID='PN9mu12wlD'
