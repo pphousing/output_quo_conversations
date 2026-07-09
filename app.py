@@ -104,9 +104,9 @@ def send_text(phone_num, message, first_name):
     elif first_name == 'Ethar':
         payload = {
         "content": message,
-        "from":  'US5V9aAC0g',
+        "from":  'PNGxRJ7ziq',
         "to":[phone_num],
-        "userId":'USuWv0mT0e'
+        "userId":'US5V9aAC0g'
     }
     elif first_name == 'Sara':
         payload = {
