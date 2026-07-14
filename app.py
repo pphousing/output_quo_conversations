@@ -80,12 +80,12 @@ def send_text(phone_num, message, first_name):
             "to":[phone_num],
             "userId":"USMZbFI72a"
         }
-    elif first_name == 'Yara':
+    elif first_name == 'Youssef':
         payload = {
         "content": message,
         "from": "PNaOHVFQas",
         "to":[phone_num],
-        "userId":"USouZb1udK"
+        "userId":"UShTcGkXH8"
     }
     elif first_name == 'Ahmed':
         payload = {
@@ -416,7 +416,7 @@ def return_messages():
 
     if first_name =='Charlie':
         PHONE_NUMBER_ID =  "PNvnUZwoP3"
-    elif first_name == 'Mahmoud':
+    elif first_name == 'Yara':
         PHONE_NUMBER_ID =  "PNaOHVFQas"
     elif first_name == 'Ahmed':
         PHONE_NUMBER_ID = 'PNVYQxBEmb'
